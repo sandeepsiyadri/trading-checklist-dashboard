@@ -111,6 +111,22 @@ python app.py
 ```
 This will start the Flask backend on http://localhost:5000.
 
+### Steps to Integrate Telegram Notification:
+
+1.  **Create a Telegram Bot**:
+    
+    -   Open Telegram and search for the "BotFather".
+    -   Start a chat with BotFather and use the `/newbot` command to create a new bot.
+    -   Follow the prompts to set a bot name and username. Once created, BotFather will provide you with a **Telegram Bot Token**.
+2.  **Get Your Channel Chat ID**:
+    
+    -   Add the bot to your Telegram channel as an admin.
+    -   Use the bot's API to get the chat ID of your channel. You can use the following URL in your browser, replacing `YOUR_BOT_TOKEN` with your actual bot token:
+        
+        `https://api.telegram.org/botYOUR_BOT_TOKEN/getUpdates` 
+        
+    -  Telegram channel chat IDs start with `-100`. Ensure you include this prefix. Send a message in your channel and then check the above URL to find the `chat_id` in the JSON response. This `chat_id` is used to send messages to your channel.
+
 ## Running the Application
 
 1. Run the backend (Flask server):
