@@ -10,6 +10,8 @@ function App() {
     const [peBullish, setPeBullish] = useState([]);
     const [peBearish, setPeBearish] = useState([]);
 
+    const resetThreshold = 10;  // Set the threshold to 10
+
     useEffect(() => {
         socket.on('update', (data) => {
             console.log(data); // Debug the incoming data
@@ -19,16 +21,16 @@ function App() {
 
             switch (data.section) {
                 case 'CE Bullish':
-                    setCeBullish(prev => [...prev, { message, type: 'bullish' }]);
+                    setCeBullish(prev => handleAlerts(prev, message, 'bullish', setCeBullish));
                     break;
                 case 'CE Bearish':
-                    setCeBearish(prev => [...prev, { message, type: 'bearish' }]);
+                    setCeBearish(prev => handleAlerts(prev, message, 'bearish', setCeBearish));
                     break;
                 case 'PE Bullish':
-                    setPeBullish(prev => [...prev, { message, type: 'bullish' }]);
+                    setPeBullish(prev => handleAlerts(prev, message, 'bullish', setPeBullish));
                     break;
                 case 'PE Bearish':
-                    setPeBearish(prev => [...prev, { message, type: 'bearish' }]);
+                    setPeBearish(prev => handleAlerts(prev, message, 'bearish', setPeBearish));
                     break;
                 default:
                     console.log('Unknown section:', data.section);
@@ -40,6 +42,20 @@ function App() {
             socket.off('update');
         };
     }, []);
+
+    const handleAlerts = (prevAlerts, message, type, setSection) => {
+        const newAlert = { message, type };
+        const newAlerts = [...prevAlerts, newAlert];
+        
+        if (newAlerts.length > resetThreshold) {
+            // Remove first 6 alerts and only keep the 7th
+            setSection(newAlerts.slice(-resetThreshold)); // Keep the latest 7 alerts
+        } else {
+            setSection(newAlerts);
+        }
+
+        return newAlerts;
+    };
 
     const resetSection = (setSection) => {
         setSection([]); // Reset the section data
@@ -63,7 +79,7 @@ function App() {
                     <h2 style={{ color: getHeadingColor('bullish') }}>CE Bullish Checks</h2>
                     {ceBullish.map((msg, index) => (
                         <p key={index}>
-                            <span className="checkbox">{renderCheckbox(msg.type)}</span> {msg.message}
+                            {index + 1}. <span className="checkbox">{renderCheckbox(msg.type)}</span> {msg.message}
                         </p>
                     ))}
                     <button onClick={() => resetSection(setCeBullish)}>Reset</button>
@@ -72,7 +88,7 @@ function App() {
                     <h2 style={{ color: getHeadingColor('bullish') }}>PE Bullish Checks</h2>
                     {peBullish.map((msg, index) => (
                         <p key={index}>
-                            <span className="checkbox">{renderCheckbox(msg.type)}</span> {msg.message}
+                            {index + 1}. <span className="checkbox">{renderCheckbox(msg.type)}</span> {msg.message}
                         </p>
                     ))}
                     <button onClick={() => resetSection(setPeBullish)}>Reset</button>
@@ -81,7 +97,7 @@ function App() {
                     <h2 style={{ color: getHeadingColor('bearish') }}>CE Bearish Checks</h2>
                     {ceBearish.map((msg, index) => (
                         <p key={index}>
-                            <span className="checkbox">{renderCheckbox(msg.type)}</span> {msg.message}
+                            {index + 1}. <span className="checkbox">{renderCheckbox(msg.type)}</span> {msg.message}
                         </p>
                     ))}
                     <button onClick={() => resetSection(setCeBearish)}>Reset</button>
@@ -90,7 +106,7 @@ function App() {
                     <h2 style={{ color: getHeadingColor('bearish') }}>PE Bearish Checks</h2>
                     {peBearish.map((msg, index) => (
                         <p key={index}>
-                            <span className="checkbox">{renderCheckbox(msg.type)}</span> {msg.message}
+                            {index + 1}. <span className="checkbox">{renderCheckbox(msg.type)}</span> {msg.message}
                         </p>
                     ))}
                     <button onClick={() => resetSection(setPeBearish)}>Reset</button>
