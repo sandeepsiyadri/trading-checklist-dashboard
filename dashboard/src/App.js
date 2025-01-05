@@ -1,8 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import io from 'socket.io-client';
-import './App.css';  // Ensure this includes the grid layout from earlier
+import axios from 'axios';
+import './App.css';
 
 const socket = io('http://localhost:5000');
+
+// Load environment variables
+const TELEGRAM_BOT_TOKEN = process.env.REACT_APP_TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = process.env.REACT_APP_TELEGRAM_CHAT_ID;
+
+const resetThreshold = 7;
+let lastNotificationTimestamp = 0; // Timestamp for throttling notifications
+const notificationInterval = 5000; // 5 seconds interval between notifications
 
 function App() {
     const [ceBullish, setCeBullish] = useState([]);
@@ -10,30 +19,27 @@ function App() {
     const [peBullish, setPeBullish] = useState([]);
     const [peBearish, setPeBearish] = useState([]);
 
-    const resetThreshold = 10;  // Set the threshold to 10
-
     useEffect(() => {
         socket.on('update', (data) => {
-            console.log(data); // Debug the incoming data
-
-            // Default message if no 'Message' is found
+            const timestamp = new Date().toLocaleString();
+            console.log(`[${timestamp}] Received update:`, data); // Debugging log
             const message = data.message || 'No message received';
 
             switch (data.section) {
                 case 'CE Bullish':
-                    setCeBullish(prev => handleAlerts(prev, message, 'bullish', setCeBullish));
+                    setCeBullish(prev => handleAlerts(prev, message, 'CE Bullish', 'bullish', setCeBullish));
                     break;
                 case 'CE Bearish':
-                    setCeBearish(prev => handleAlerts(prev, message, 'bearish', setCeBearish));
+                    setCeBearish(prev => handleAlerts(prev, message, 'CE Bearish', 'bearish', setCeBearish));
                     break;
                 case 'PE Bullish':
-                    setPeBullish(prev => handleAlerts(prev, message, 'bullish', setPeBullish));
+                    setPeBullish(prev => handleAlerts(prev, message, 'PE Bullish', 'bullish', setPeBullish));
                     break;
                 case 'PE Bearish':
-                    setPeBearish(prev => handleAlerts(prev, message, 'bearish', setPeBearish));
+                    setPeBearish(prev => handleAlerts(prev, message, 'PE Bearish', 'bearish', setPeBearish));
                     break;
                 default:
-                    console.log('Unknown section:', data.section);
+                    console.log(`[${timestamp}] Unknown section:`, data.section);
                     break;
             }
         });
@@ -43,30 +49,53 @@ function App() {
         };
     }, []);
 
-    const handleAlerts = (prevAlerts, message, type, setSection) => {
+    const handleAlerts = (prevAlerts, message, section, type, setSection) => {
         const newAlert = { message, type };
         const newAlerts = [...prevAlerts, newAlert];
-        
-        if (newAlerts.length > resetThreshold) {
-            // Remove first 6 alerts and only keep the 7th
-            setSection(newAlerts.slice(-resetThreshold)); // Keep the latest 7 alerts
-        } else {
-            setSection(newAlerts);
+
+        if (newAlerts.length === 5) {
+            sendTelegramNotification(section, type, newAlerts);
         }
 
-        return newAlerts;
+        if (newAlerts.length > resetThreshold) {
+            return newAlerts.slice(-resetThreshold);
+        } else {
+            return newAlerts;
+        }
+    };
+
+    const sendTelegramNotification = (section, type, alerts) => {
+        const currentTime = Date.now();
+        const timestamp = new Date().toLocaleString();
+
+        if (currentTime - lastNotificationTimestamp < notificationInterval) {
+            console.log(`[${timestamp}] Notification throttled`); // Debugging log
+            return; // Throttle notifications if sent within the interval
+        }
+
+        lastNotificationTimestamp = currentTime;
+
+        const alertMessages = alerts.map((alert, index) => `${index + 1}. ${alert.message}`).join('\n');
+        const message = `🚨 ${section.toUpperCase()} ${type.toUpperCase()} ALERT 🚨\n\n${alertMessages}`;
+
+        axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+            chat_id: TELEGRAM_CHAT_ID,
+            text: message
+        }).then(response => {
+            console.log(`[${timestamp}] Telegram message sent:`, response.data);
+        }).catch(error => {
+            console.error(`[${timestamp}] Error sending Telegram message:`, error);
+        });
     };
 
     const resetSection = (setSection) => {
         setSection([]); // Reset the section data
     };
 
-    // Render checkbox with tick for bullish, cross for bearish
     const renderCheckbox = (type) => {
-        return type === 'bullish' ? '✔️' : '❌'; // Checkmark for bullish, cross for bearish
+        return type === 'bullish' ? '✔️' : '❌';
     };
 
-    // Set color based on message type
     const getHeadingColor = (type) => {
         return type === 'bullish' ? 'green' : 'red';
     };
